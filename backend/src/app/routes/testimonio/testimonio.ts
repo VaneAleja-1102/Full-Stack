@@ -1,0 +1,24 @@
+import { Router } from "express";
+import { RoutesApp } from "../../../core/routes";
+import { TestimonioController } from "../../services/controller/testimonio";
+import { authenticate, authorize } from "../../middlewares/auth.middleware";
+
+export class TestimonioRoutes extends RoutesApp {
+    public router: Router;
+    private controller: TestimonioController;
+
+    constructor() {
+        super();
+        this.router = Router();
+        this.controller = new TestimonioController();
+        this.setServicesRoutes();
+    }
+
+    protected setServicesRoutes(): void {
+        this.router.get('/', authenticate, authorize('superadmin', 'admin_pais', 'editor'), this.controller.getAll.bind(this.controller));
+        this.router.post('/', authenticate, authorize('superadmin', 'admin_pais', 'editor'), this.controller.create.bind(this.controller));
+        this.router.put('/:id', authenticate, authorize('superadmin', 'admin_pais', 'editor'), this.controller.update.bind(this.controller));
+        this.router.put('/:id/status', authenticate, authorize('superadmin', 'admin_pais', 'editor'), this.controller.updateStatus.bind(this.controller));
+        this.router.delete('/:id', authenticate, authorize('superadmin', 'admin_pais'), this.controller.remove.bind(this.controller));
+    }
+}
