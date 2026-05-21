@@ -1,8 +1,10 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/services/api_service.dart';
+import 'package:app/providers/auth_provider.dart';
+import 'package:app/providers/solicitud_provider.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:provider/provider.dart';
+import 'package:app/providers/solicitud_provider.dart';
+import 'package:app/providers/auth_provider.dart';
 class RequestPage extends StatefulWidget {
   const RequestPage({super.key});
 
@@ -11,37 +13,12 @@ class RequestPage extends StatefulWidget {
 }
 
 class _RequestPageState extends State<RequestPage> {
-  final _api = ApiService();
-  List<dynamic> _solicitudes = [];
-  bool _isLoading = true;
-  String _error = '';
-  String? _filterStatus;
-  String? _filterCountry;
-  String _role = '';
-
   @override
   void initState() {
     super.initState();
-    _loadRole();
-  }
-
-  Future<void> _loadRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => _role = prefs.getString('role') ?? '');
-    _loadSolicitudes();
-  }
-
-  Future<void> _loadSolicitudes() async {
-    try {
-      setState(() { _isLoading = true; _error = ''; });
-      final solicitudes = await _api.getSolicitudes(
-        status: _filterStatus,
-        country: _filterCountry,
-      );
-      setState(() { _solicitudes = solicitudes; _isLoading = false; });
-    } catch (e) {
-      setState(() { _error = 'Error cargando solicitudes'; _isLoading = false; });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SolicitudProvider>().loadSolicitudes();
+    });
   }
 
   Future<void> _confirmDelete(String id) async {
@@ -59,9 +36,8 @@ class _RequestPageState extends State<RequestPage> {
         ],
       ),
     );
-    if (confirmed == true) {
-      final ok = await _api.deleteSolicitud(id);
-      if (ok) _loadSolicitudes();
+    if (confirmed == true && mounted) {
+      context.read<SolicitudProvider>().deleteSolicitud(id);
     }
   }
 
@@ -85,6 +61,8 @@ class _RequestPageState extends State<RequestPage> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<SolicitudProvider>();
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.formBackground,
       appBar: AppBar(
@@ -94,7 +72,6 @@ class _RequestPageState extends State<RequestPage> {
       ),
       body: Column(
         children: [
-          // Filtros
           Container(
             color: AppColors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -102,7 +79,7 @@ class _RequestPageState extends State<RequestPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _filterStatus,
+                    value: provider.filterStatus,
                     decoration: const InputDecoration(
                       labelText: 'Estado',
                       border: OutlineInputBorder(),
@@ -114,14 +91,14 @@ class _RequestPageState extends State<RequestPage> {
                       DropdownMenuItem(value: 'gestionada', child: Text('Gestionada')),
                       DropdownMenuItem(value: 'respondida', child: Text('Respondida')),
                     ],
-                    onChanged: (v) { setState(() => _filterStatus = v); _loadSolicitudes(); },
+                    onChanged: (v) => context.read<SolicitudProvider>().setFilterStatus(v),
                   ),
                 ),
-                if (_role == 'superadmin') ...[
+                if (auth.isSuperAdmin) ...[
                   const SizedBox(width: 8),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _filterCountry,
+                      value: provider.filterCountry,
                       decoration: const InputDecoration(
                         labelText: 'País',
                         border: OutlineInputBorder(),
@@ -134,7 +111,7 @@ class _RequestPageState extends State<RequestPage> {
                         DropdownMenuItem(value: 'Ecuador', child: Text('Ecuador')),
                         DropdownMenuItem(value: 'México', child: Text('México')),
                       ],
-                      onChanged: (v) { setState(() => _filterCountry = v); _loadSolicitudes(); },
+                      onChanged: (v) => context.read<SolicitudProvider>().setFilterCountry(v),
                     ),
                   ),
                 ],
@@ -142,26 +119,27 @@ class _RequestPageState extends State<RequestPage> {
             ),
           ),
           Expanded(
-            child: _isLoading
+            child: provider.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _error.isNotEmpty
-                    ? Center(child: Text(_error, style: const TextStyle(color: Colors.red)))
-                    : _solicitudes.isEmpty
+                : provider.error.isNotEmpty
+                    ? Center(child: Text(provider.error, style: const TextStyle(color: Colors.red)))
+                    : provider.solicitudes.isEmpty
                         ? const Center(child: Text('No hay solicitudes'))
                         : RefreshIndicator(
-                            onRefresh: _loadSolicitudes,
+                            onRefresh: () => context.read<SolicitudProvider>().loadSolicitudes(),
                             child: ListView.builder(
                               padding: const EdgeInsets.all(16),
-                              itemCount: _solicitudes.length,
+                              itemCount: provider.solicitudes.length,
                               itemBuilder: (context, index) {
-                                final s = _solicitudes[index];
+                                final s = provider.solicitudes[index];
                                 final status = s['status'] ?? 'pendiente';
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   child: ListTile(
                                     contentPadding: const EdgeInsets.all(16),
-                                    title: Text(s['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text(s['name'],
+                                        style: const TextStyle(fontWeight: FontWeight.bold)),
                                     subtitle: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -183,17 +161,19 @@ class _RequestPageState extends State<RequestPage> {
                                           child: Text(status,
                                               style: TextStyle(color: _statusColor(status), fontSize: 11)),
                                         ),
-                                        if (_role != 'editor')
+                                        if (!auth.isEditor)
                                           GestureDetector(
                                             onTap: () => _confirmDelete(s['_id']),
-                                            child: const Icon(Icons.delete_outline, color: AppColors.errorColor, size: 20),
+                                            child: const Icon(Icons.delete_outline,
+                                                color: AppColors.errorColor, size: 20),
                                           ),
                                       ],
                                     ),
                                     onTap: () => Navigator.pushNamed(
-                                      context, '/solicitudes/detalle',
+                                      context,
+                                      '/solicitudes/detalle',
                                       arguments: s,
-                                    ).then((_) => _loadSolicitudes()),
+                                    ).then((_) => context.read<SolicitudProvider>().loadSolicitudes()),
                                   ),
                                 );
                               },

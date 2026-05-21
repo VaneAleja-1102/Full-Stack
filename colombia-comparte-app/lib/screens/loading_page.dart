@@ -1,6 +1,7 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/services/auth_service.dart';
+import 'package:app/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
@@ -10,8 +11,6 @@ class LoadingPage extends StatefulWidget {
 }
 
 class _LoadingPageState extends State<LoadingPage> {
-  final _authService = AuthService();
-
   @override
   void initState() {
     super.initState();
@@ -22,12 +21,14 @@ class _LoadingPageState extends State<LoadingPage> {
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
-    final loggedIn = await _authService.isLoggedIn();
+    final auth = context.read<AuthProvider>();
+    final loggedIn = await auth.isLoggedIn();
     if (!mounted) return;
 
     if (loggedIn) {
-      final role = await _authService.getRole();
-      if (role == 'superadmin') {
+      await auth.loadUser();
+      if (!mounted) return;
+      if (auth.isSuperAdmin) {
         Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
         Navigator.pushReplacementNamed(context, '/dashboard/pais');
@@ -43,26 +44,18 @@ class _LoadingPageState extends State<LoadingPage> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Align(
                   alignment: Alignment.topRight,
                   child: Padding(
                     padding: EdgeInsets.only(top: 8),
-                    child: Text(
-                      'v1.0',
-                      style: TextStyle(
-                        color: AppColors.whiteTransparent,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: Text('v1.0',
+                        style: TextStyle(color: AppColors.whiteTransparent, fontSize: 12)),
                   ),
                 ),
                 const Spacer(),
@@ -73,30 +66,15 @@ class _LoadingPageState extends State<LoadingPage> {
                     color: AppColors.white,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Icon(
-                    Icons.public,
-                    size: 48,
-                    color: AppColors.primaryPurple,
-                  ),
+                  child: const Icon(Icons.public, size: 48, color: AppColors.primaryPurple),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'Latinoamérica Comparte',
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                const Text('Latinoamérica Comparte',
+                    style: TextStyle(color: AppColors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 6),
-                const Text(
-                  'Panel Administrativo',
-                  style: TextStyle(
-                    color: AppColors.whiteTransparent,
-                    fontSize: 14,
-                  ),
-                ),
+                const Text('Panel Administrativo',
+                    style: TextStyle(color: AppColors.whiteTransparent, fontSize: 14)),
                 const Spacer(),
                 const CircularProgressIndicator(color: AppColors.white),
                 const SizedBox(height: 24),

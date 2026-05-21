@@ -1,15 +1,13 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/models/noticia_model.dart';
+import 'package:app/providers/auth_provider.dart';
 import 'package:app/widgets/common/app_drawer.dart';
-import 'package:app/models/solicitud_model.dart';
-import 'package:app/models/testimonio_model.dart';
 import 'package:app/widgets/common/status_badge.dart';
 import 'package:app/widgets/dashboard/dashboard_bottom_nav.dart';
 import 'package:app/widgets/dashboard/dashboard_card.dart';
-import 'package:app/widgets/dashboard/list_item_row.dart';
 import 'package:app/widgets/dashboard/metric_box.dart';
 import 'package:app/widgets/dashboard/outline_action_button.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class DashboardAdminPaisPage extends StatelessWidget {
   const DashboardAdminPaisPage({super.key});
@@ -43,8 +41,6 @@ class DashboardAdminPaisPage extends StatelessWidget {
   }
 }
 
-// ─── AppBar ───────────────────────────────────────────────────────────────────
-
 class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(56);
@@ -76,8 +72,7 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
               _CountryChip(),
               const SizedBox(width: 10),
-              const Icon(Icons.language_rounded,
-                  color: AppColors.white, size: 22),
+              const Icon(Icons.language_rounded, color: AppColors.white, size: 22),
             ],
           ),
         ),
@@ -89,78 +84,70 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
 class _CountryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: AppColors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('🇨🇴', style: TextStyle(fontSize: 13)),
-          SizedBox(width: 5),
-          Text(
-            'Colombia',
-            style: TextStyle(
-              color: AppColors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+      child: Text(
+        auth.country,
+        style: const TextStyle(
+          color: AppColors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
-
-// ─── Welcome ──────────────────────────────────────────────────────────────────
 
 class _WelcomeHeader extends StatelessWidget {
   const _WelcomeHeader();
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final auth = context.watch<AuthProvider>();
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hola, Marcela',
-          style: TextStyle(
+          'Hola, ${auth.name}',
+          style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 26,
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(height: 4),
+        const SizedBox(height: 4),
         Text(
-          'Administradora · Colombia',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          '${auth.role} · ${auth.country}',
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
       ],
     );
   }
 }
 
-// ─── Metrics ──────────────────────────────────────────────────────────────────
-
 class _MetricsSection extends StatelessWidget {
   const _MetricsSection();
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return DashboardCard(
       title: 'Métricas del día',
-      subtitle: 'Colombia Comparte',
+      subtitle: '${auth.country} Comparte',
       badge: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: AppColors.metricDraftBg,
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Text(
-          'CO',
-          style: TextStyle(
+        child: Text(
+          auth.country.isNotEmpty ? auth.country.substring(0, 2).toUpperCase() : 'XX',
+          style: const TextStyle(
             color: AppColors.metricDraftText,
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -195,8 +182,6 @@ class _MetricsSection extends StatelessWidget {
   }
 }
 
-// ─── Solicitudes ──────────────────────────────────────────────────────────────
-
 class _SolicitudesSection extends StatelessWidget {
   const _SolicitudesSection();
 
@@ -205,83 +190,72 @@ class _SolicitudesSection extends StatelessWidget {
     return DashboardCard(
       title: 'Últimas solicitudes',
       actionLabel: 'Ver todas',
-      onAction: () {},
-      child: Column(
-        children: List.generate(solicitudesMock.length, (i) {
-          final item = solicitudesMock[i];
-          return ListItemRow(
-            title: item.name,
-            subtitle: item.city,
-            leading: AvatarLeading(initials: item.initials),
-            trailing: const StatusBadge(status: BadgeStatus.pending),
-            showDivider: i < solicitudesMock.length - 1,
-          );
-        }),
+      onAction: () => Navigator.pushNamed(context, '/solicitudes'),
+      child: const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('Ir a solicitudes para ver el listado',
+              style: TextStyle(color: AppColors.textSecondary)),
+        ),
       ),
     );
   }
 }
-
-// ─── Testimonios ──────────────────────────────────────────────────────────────
 
 class _TestimoniosSection extends StatelessWidget {
   const _TestimoniosSection();
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return DashboardCard(
       title: 'Mis testimonios',
       child: Column(
         children: [
-          ...List.generate(testimoniosMock.length, (i) {
-            final t = testimoniosMock[i];
-            return ListItemRow(
-              title: t.name,
-              subtitle: '',
-              leading: AvatarLeading(initials: t.initials, color: t.avatarColor),
-              trailing: StatusBadge(status: t.status),
-              showDivider: i < testimoniosMock.length - 1,
-            );
-          }),
-          const SizedBox(height: 12),
-          OutlineActionButton(
-            label: 'Nuevo testimonio +',
-            icon: Icons.add_circle_outline_rounded,
-            onPressed: () {},
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('Ir a testimonios para gestionar',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
           ),
+          const SizedBox(height: 12),
+          if (!auth.isEditor)
+            OutlineActionButton(
+              label: 'Nuevo testimonio +',
+              icon: Icons.add_circle_outline_rounded,
+              onPressed: () => Navigator.pushNamed(context, '/testimonios/nuevo'),
+            ),
         ],
       ),
     );
   }
 }
 
-// ─── Noticias ─────────────────────────────────────────────────────────────────
-
 class _NoticiasSection extends StatelessWidget {
   const _NoticiasSection();
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return DashboardCard(
       title: 'Mis noticias',
       child: Column(
         children: [
-          ...List.generate(noticiasMock.length, (i) {
-            final n = noticiasMock[i];
-            return ListItemRow(
-              title: n.title,
-              subtitle: '',
-              leading: ImageLeading(color: n.thumbnailColor, icon: n.thumbnailIcon),
-              trailing: StatusBadge(status: n.status),
-              showDivider: i < noticiasMock.length - 1,
-            );
-          }),
-          const SizedBox(height: 12),
-          OutlineActionButton(
-            label: 'Nueva noticia +',
-            icon: Icons.add_circle_outline_rounded,
-            onPressed: () {},
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: Text('Ir a noticias para gestionar',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
           ),
+          const SizedBox(height: 12),
+          if (!auth.isEditor)
+            OutlineActionButton(
+              label: 'Nueva noticia +',
+              icon: Icons.add_circle_outline_rounded,
+              onPressed: () => Navigator.pushNamed(context, '/noticias/nuevo'),
+            ),
         ],
       ),
     );

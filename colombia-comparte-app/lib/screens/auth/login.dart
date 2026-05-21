@@ -1,9 +1,10 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/services/auth_service.dart';
+import 'package:app/providers/auth_provider.dart';
 import 'package:app/widgets/auth/auth_header.dart';
 import 'package:app/widgets/buttons/app_primary_button.dart';
 import 'package:app/widgets/inputs/app_text_field.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,41 +16,20 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authService = AuthService();
-  bool _isLoading = false;
-  String _errorMessage = '';
 
   Future<void> _login() async {
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Por favor completa todos los campos');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    final result = await _authService.login(
+    final auth = context.read<AuthProvider>();
+    final role = await auth.login(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
-
     if (!mounted) return;
-
-    if (result['ok'] == true) {
-      final role = result['role'];
+    if (role != null) {
       if (role == 'superadmin') {
         Navigator.pushReplacementNamed(context, '/dashboard');
       } else {
         Navigator.pushReplacementNamed(context, '/dashboard/pais');
       }
-    } else {
-      setState(() {
-        _errorMessage = result['message'];
-        _isLoading = false;
-      });
     }
   }
 
@@ -62,6 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.formBackground,
       body: SingleChildScrollView(
@@ -92,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
                     controller: _passwordController,
                   ),
                   const SizedBox(height: 16),
-                  if (_errorMessage.isNotEmpty)
+                  if (auth.error.isNotEmpty)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(12),
@@ -104,25 +85,19 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.errorColor, size: 18),
+                          const Icon(Icons.error_outline, color: AppColors.errorColor, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              _errorMessage,
-                              style: const TextStyle(
-                                color: AppColors.errorColor,
-                                fontSize: 13,
-                              ),
-                            ),
+                            child: Text(auth.error,
+                                style: const TextStyle(color: AppColors.errorColor, fontSize: 13)),
                           ),
                         ],
                       ),
                     ),
                   const SizedBox(height: 12),
                   AppPrimaryButton(
-                    label: _isLoading ? 'Iniciando sesión...' : 'Iniciar sesión →',
-                    onPressed: _isLoading ? null : _login,
+                    label: auth.isLoading ? 'Iniciando sesión...' : 'Iniciar sesión →',
+                    onPressed: auth.isLoading ? null : _login,
                   ),
                   const SizedBox(height: 32),
                   const _SecurityDisclaimer(),
@@ -142,16 +117,12 @@ class _SecurityDisclaimer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: const [
+    return const Column(
+      children: [
         Text(
           'Acceso restringido únicamente a personal autorizado de\nLatinoamérica Comparte.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textHint,
-            fontSize: 11,
-            height: 1.6,
-          ),
+          style: TextStyle(color: AppColors.textHint, fontSize: 11, height: 1.6),
         ),
         SizedBox(height: 16),
         Row(
@@ -159,15 +130,12 @@ class _SecurityDisclaimer extends StatelessWidget {
           children: [
             Icon(Icons.shield_outlined, color: AppColors.textHint, size: 14),
             SizedBox(width: 4),
-            Text(
-              'SECURE CONNECT',
-              style: TextStyle(
-                color: AppColors.textHint,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-              ),
-            ),
+            Text('SECURE CONNECT',
+                style: TextStyle(
+                    color: AppColors.textHint,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8)),
           ],
         ),
       ],

@@ -1,6 +1,8 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/services/api_service.dart';
+import 'package:app/providers/auth_provider.dart';
+import 'package:app/providers/testimonio_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class TestimoniosPage extends StatefulWidget {
   const TestimoniosPage({super.key});
@@ -10,31 +12,12 @@ class TestimoniosPage extends StatefulWidget {
 }
 
 class _TestimoniosPageState extends State<TestimoniosPage> {
-  final _api = ApiService();
-  List<dynamic> _testimonios = [];
-  bool _isLoading = true;
-  String _error = '';
-
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      setState(() { _isLoading = true; _error = ''; });
-      final data = await _api.getTestimonios();
-      setState(() { _testimonios = data; _isLoading = false; });
-    } catch (e) {
-      setState(() { _error = 'Error cargando testimonios'; _isLoading = false; });
-    }
-  }
-
-  Future<void> _toggleStatus(String id, String current) async {
-    final newStatus = current == 'publicado' ? 'despublicado' : 'publicado';
-    await _api.updateTestimonioStatus(id, newStatus);
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<TestimonioProvider>().loadTestimonios();
+    });
   }
 
   Future<void> _confirmDelete(String id) async {
@@ -45,14 +28,15 @@ class _TestimoniosPageState extends State<TestimoniosPage> {
         content: const Text('¿Estás seguro?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
-      await _api.deleteTestimonio(id);
-      _load();
+    if (confirmed == true && mounted) {
+      context.read<TestimonioProvider>().deleteTestimonio(id);
     }
   }
 
@@ -76,6 +60,8 @@ class _TestimoniosPageState extends State<TestimoniosPage> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<TestimonioProvider>();
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.formBackground,
       appBar: AppBar(
@@ -83,24 +69,27 @@ class _TestimoniosPageState extends State<TestimoniosPage> {
         backgroundColor: AppColors.primaryPurple,
         iconTheme: const IconThemeData(color: AppColors.white),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryPurple,
-        onPressed: () => Navigator.pushNamed(context, '/testimonios/nuevo').then((_) => _load()),
-        child: const Icon(Icons.add, color: AppColors.white),
-      ),
-      body: _isLoading
+      floatingActionButton: auth.isEditor
+          ? null
+          : FloatingActionButton(
+              backgroundColor: AppColors.primaryPurple,
+              onPressed: () => Navigator.pushNamed(context, '/testimonios/nuevo')
+                  .then((_) => context.read<TestimonioProvider>().loadTestimonios()),
+              child: const Icon(Icons.add, color: AppColors.white),
+            ),
+      body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _error.isNotEmpty
-              ? Center(child: Text(_error, style: const TextStyle(color: Colors.red)))
-              : _testimonios.isEmpty
+          : provider.error.isNotEmpty
+              ? Center(child: Text(provider.error, style: const TextStyle(color: Colors.red)))
+              : provider.testimonios.isEmpty
                   ? const Center(child: Text('No hay testimonios'))
                   : RefreshIndicator(
-                      onRefresh: _load,
+                      onRefresh: () => context.read<TestimonioProvider>().loadTestimonios(),
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _testimonios.length,
+                        itemCount: provider.testimonios.length,
                         itemBuilder: (context, index) {
-                          final t = _testimonios[index];
+                          final t = provider.testimonios[index];
                           final status = t['status'] ?? 'borrador';
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12),
@@ -114,7 +103,8 @@ class _TestimoniosPageState extends State<TestimoniosPage> {
                                     children: [
                                       Expanded(
                                         child: Text(t['name'],
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold, fontSize: 16)),
                                       ),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -128,35 +118,52 @@ class _TestimoniosPageState extends State<TestimoniosPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(t['country'], style: const TextStyle(color: AppColors.textSecondary)),
+                                  Text(t['country'],
+                                      style: const TextStyle(color: AppColors.textSecondary)),
                                   const SizedBox(height: 8),
                                   Text(t['text'],
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: AppColors.textPrimary)),
+                                      maxLines: 2, overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 12),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      TextButton.icon(
-                                        onPressed: () => _toggleStatus(t['_id'], status),
-                                        icon: Icon(
-                                          status == 'publicado' ? Icons.visibility_off : Icons.visibility,
-                                          size: 16,
+                                      if (!auth.isEditor)
+                                        TextButton.icon(
+                                          onPressed: () => context
+                                              .read<TestimonioProvider>()
+                                              .toggleStatus(t['_id'], status),
+                                          icon: Icon(
+                                            status == 'publicado'
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            size: 16,
+                                          ),
+                                          label: Text(status == 'publicado'
+                                              ? 'Despublicar'
+                                              : 'Publicar'),
                                         ),
-                                        label: Text(status == 'publicado' ? 'Despublicar' : 'Publicar'),
-                                      ),
-                                      IconButton(
-                                        onPressed: () => Navigator.pushNamed(
-                                          context, '/testimonios/nuevo',
-                                          arguments: t,
-                                        ).then((_) => _load()),
-                                        icon: const Icon(Icons.edit_outlined, color: AppColors.primaryPurple),
-                                      ),
-                                      IconButton(
-                                        onPressed: () => _confirmDelete(t['_id']),
-                                        icon: const Icon(Icons.delete_outline, color: AppColors.errorColor),
-                                      ),
+                                      if (!auth.isEditor) ...[
+                                        IconButton(
+                                          onPressed: () => Navigator.pushNamed(
+                                            context,
+                                            '/testimonios/nuevo',
+                                            arguments: t,
+                                          ).then((_) => context
+                                              .read<TestimonioProvider>()
+                                              .loadTestimonios()),
+                                          icon: const Icon(Icons.edit_outlined,
+                                              color: AppColors.primaryPurple),
+                                        ),
+                                        IconButton(
+                                          onPressed: () => _confirmDelete(t['_id']),
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: AppColors.errorColor),
+                                        ),
+                                      ],
+                                      if (auth.isEditor)
+                                        const Text('Solo lectura',
+                                            style: TextStyle(
+                                                color: AppColors.textHint, fontSize: 12)),
                                     ],
                                   ),
                                 ],

@@ -1,6 +1,7 @@
 import 'package:app/core/app/app_colors.dart';
 import 'package:app/models/pais_model.dart';
 import 'package:flutter/material.dart';
+import 'package:app/providers/country_provider.dart';
 
 class PortalCard extends StatelessWidget {
   final PaisModel portal;

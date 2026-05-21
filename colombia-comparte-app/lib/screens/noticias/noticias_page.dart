@@ -1,6 +1,8 @@
 import 'package:app/core/app/app_colors.dart';
-import 'package:app/services/api_service.dart';
+import 'package:app/providers/auth_provider.dart';
+import 'package:app/providers/noticia_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class NoticiasPage extends StatefulWidget {
   const NoticiasPage({super.key});
@@ -10,31 +12,12 @@ class NoticiasPage extends StatefulWidget {
 }
 
 class _NoticiasPageState extends State<NoticiasPage> {
-  final _api = ApiService();
-  List<dynamic> _noticias = [];
-  bool _isLoading = true;
-  String _error = '';
-
   @override
   void initState() {
     super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      setState(() { _isLoading = true; _error = ''; });
-      final data = await _api.getNoticias();
-      setState(() { _noticias = data; _isLoading = false; });
-    } catch (e) {
-      setState(() { _error = 'Error cargando noticias'; _isLoading = false; });
-    }
-  }
-
-  Future<void> _toggleStatus(String id, String current) async {
-    final newStatus = current == 'publicado' ? 'borrador' : 'publicado';
-    await _api.updateNoticiaStatus(id, newStatus);
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<NoticiaProvider>().loadNoticias();
+    });
   }
 
   Future<void> _confirmDelete(String id) async {
@@ -45,19 +28,22 @@ class _NoticiasPageState extends State<NoticiasPage> {
         content: const Text('¿Estás seguro?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+          ),
         ],
       ),
     );
-    if (confirmed == true) {
-      await _api.deleteNoticia(id);
-      _load();
+    if (confirmed == true && mounted) {
+      context.read<NoticiaProvider>().deleteNoticia(id);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<NoticiaProvider>();
+    final auth = context.watch<AuthProvider>();
     return Scaffold(
       backgroundColor: AppColors.formBackground,
       appBar: AppBar(
@@ -65,24 +51,27 @@ class _NoticiasPageState extends State<NoticiasPage> {
         backgroundColor: AppColors.primaryPurple,
         iconTheme: const IconThemeData(color: AppColors.white),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primaryPurple,
-        onPressed: () => Navigator.pushNamed(context, '/noticias/nuevo').then((_) => _load()),
-        child: const Icon(Icons.add, color: AppColors.white),
-      ),
-      body: _isLoading
+      floatingActionButton: auth.isEditor
+          ? null
+          : FloatingActionButton(
+              backgroundColor: AppColors.primaryPurple,
+              onPressed: () => Navigator.pushNamed(context, '/noticias/nuevo')
+                  .then((_) => context.read<NoticiaProvider>().loadNoticias()),
+              child: const Icon(Icons.add, color: AppColors.white),
+            ),
+      body: provider.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _error.isNotEmpty
-              ? Center(child: Text(_error, style: const TextStyle(color: Colors.red)))
-              : _noticias.isEmpty
+          : provider.error.isNotEmpty
+              ? Center(child: Text(provider.error, style: const TextStyle(color: Colors.red)))
+              : provider.noticias.isEmpty
                   ? const Center(child: Text('No hay noticias'))
                   : RefreshIndicator(
-                      onRefresh: _load,
+                      onRefresh: () => context.read<NoticiaProvider>().loadNoticias(),
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _noticias.length,
+                        itemCount: provider.noticias.length,
                         itemBuilder: (context, index) {
-                          final n = _noticias[index];
+                          final n = provider.noticias[index];
                           final status = n['status'] ?? 'borrador';
                           final isPublished = status == 'publicado';
                           return Card(
@@ -97,17 +86,22 @@ class _NoticiasPageState extends State<NoticiasPage> {
                                     children: [
                                       Expanded(
                                         child: Text(n['title'],
-                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold, fontSize: 15)),
                                       ),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: isPublished ? AppColors.statusPublishedBg : AppColors.statusDraftBg,
+                                          color: isPublished
+                                              ? AppColors.statusPublishedBg
+                                              : AppColors.statusDraftBg,
                                           borderRadius: BorderRadius.circular(20),
                                         ),
                                         child: Text(status,
                                             style: TextStyle(
-                                              color: isPublished ? AppColors.statusPublishedText : AppColors.statusDraftText,
+                                              color: isPublished
+                                                  ? AppColors.statusPublishedText
+                                                  : AppColors.statusDraftText,
                                               fontSize: 11,
                                             )),
                                       ),
@@ -115,32 +109,48 @@ class _NoticiasPageState extends State<NoticiasPage> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text('${n['author']} · ${n['country']}',
-                                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                                      style: const TextStyle(
+                                          color: AppColors.textSecondary, fontSize: 12)),
                                   const SizedBox(height: 8),
                                   Text(n['summary'],
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: AppColors.textPrimary)),
+                                      maxLines: 2, overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 12),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      TextButton.icon(
-                                        onPressed: () => _toggleStatus(n['_id'], status),
-                                        icon: Icon(isPublished ? Icons.visibility_off : Icons.visibility, size: 16),
-                                        label: Text(isPublished ? 'Despublicar' : 'Publicar'),
-                                      ),
-                                      IconButton(
-                                        onPressed: () => Navigator.pushNamed(
-                                          context, '/noticias/nuevo',
-                                          arguments: n,
-                                        ).then((_) => _load()),
-                                        icon: const Icon(Icons.edit_outlined, color: AppColors.primaryPurple),
-                                      ),
-                                      IconButton(
-                                        onPressed: () => _confirmDelete(n['_id']),
-                                        icon: const Icon(Icons.delete_outline, color: AppColors.errorColor),
-                                      ),
+                                      if (!auth.isEditor)
+                                        TextButton.icon(
+                                          onPressed: () => context
+                                              .read<NoticiaProvider>()
+                                              .toggleStatus(n['_id'], status),
+                                          icon: Icon(
+                                              isPublished
+                                                  ? Icons.visibility_off
+                                                  : Icons.visibility,
+                                              size: 16),
+                                          label: Text(isPublished ? 'Despublicar' : 'Publicar'),
+                                        ),
+                                      if (!auth.isEditor) ...[
+                                        IconButton(
+                                          onPressed: () => Navigator.pushNamed(
+                                            context,
+                                            '/noticias/nuevo',
+                                            arguments: n,
+                                          ).then((_) =>
+                                              context.read<NoticiaProvider>().loadNoticias()),
+                                          icon: const Icon(Icons.edit_outlined,
+                                              color: AppColors.primaryPurple),
+                                        ),
+                                        IconButton(
+                                          onPressed: () => _confirmDelete(n['_id']),
+                                          icon: const Icon(Icons.delete_outline,
+                                              color: AppColors.errorColor),
+                                        ),
+                                      ],
+                                      if (auth.isEditor)
+                                        const Text('Solo lectura',
+                                            style: TextStyle(
+                                                color: AppColors.textHint, fontSize: 12)),
                                     ],
                                   ),
                                 ],
