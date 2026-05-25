@@ -9,13 +9,20 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
     return Drawer(
+      backgroundColor: Colors.white,
       child: Column(
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
-            decoration: const BoxDecoration(gradient: AppColors.backgroundGradient),
+
+            // ✅ FONDO CLARO
+            decoration: const BoxDecoration(
+              color: Colors.white,
+            ),
+
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -23,23 +30,53 @@ class AppDrawer extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: AppColors.white.withValues(alpha: 0.2),
+                    color: AppColors.primaryPurple.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person, color: AppColors.white, size: 30),
+                  child: const Icon(
+                    Icons.person,
+                    color: AppColors.primaryPurple,
+                    size: 30,
+                  ),
                 ),
+
                 const SizedBox(height: 12),
-                Text(auth.name,
-                    style: const TextStyle(color: AppColors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+
+                // ✅ NOMBRE EN NEGRO
+                Text(
+                  auth.name,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
                 const SizedBox(height: 4),
-                Text(auth.role,
-                    style: const TextStyle(color: AppColors.whiteTransparent, fontSize: 13)),
+
+                // ✅ ROL EN GRIS
+                Text(
+                  auth.role,
+                  style: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
+                  ),
+                ),
+
                 if (auth.country.isNotEmpty)
-                  Text(auth.country,
-                      style: const TextStyle(color: AppColors.whiteTransparent, fontSize: 12)),
+                  Text(
+                    auth.country,
+                    style: const TextStyle(
+                      color: Colors.black45,
+                      fontSize: 12,
+                    ),
+                  ),
               ],
             ),
           ),
+
+          const Divider(height: 1),
+
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -49,13 +86,18 @@ class AppDrawer extends StatelessWidget {
                   label: 'Dashboard',
                   onTap: () {
                     Navigator.pop(context);
+
                     if (auth.isSuperAdmin) {
                       Navigator.pushReplacementNamed(context, '/dashboard');
                     } else {
-                      Navigator.pushReplacementNamed(context, '/dashboard/pais');
+                      Navigator.pushReplacementNamed(
+                        context,
+                        '/dashboard/pais',
+                      );
                     }
                   },
                 ),
+
                 if (auth.isSuperAdmin)
                   _DrawerItem(
                     icon: Icons.public_outlined,
@@ -65,6 +107,7 @@ class AppDrawer extends StatelessWidget {
                       Navigator.pushNamed(context, '/portales');
                     },
                   ),
+
                 _DrawerItem(
                   icon: Icons.inbox_outlined,
                   label: 'Solicitudes',
@@ -73,6 +116,7 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pushNamed(context, '/solicitudes');
                   },
                 ),
+
                 _DrawerItem(
                   icon: Icons.format_quote_outlined,
                   label: 'Testimonios',
@@ -81,6 +125,7 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pushNamed(context, '/contenido');
                   },
                 ),
+
                 _DrawerItem(
                   icon: Icons.newspaper_outlined,
                   label: 'Noticias',
@@ -92,16 +137,22 @@ class AppDrawer extends StatelessWidget {
               ],
             ),
           ),
+
           const Divider(),
+
           _DrawerItem(
             icon: Icons.logout_rounded,
             label: 'Cerrar sesión',
             color: AppColors.errorColor,
             onTap: () async {
               await context.read<AuthProvider>().logout();
-              if (context.mounted) Navigator.pushReplacementNamed(context, '/login');
+
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
             },
           ),
+
           const SizedBox(height: 16),
         ],
       ),
@@ -125,12 +176,19 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: color ?? AppColors.primaryPurple, size: 22),
-      title: Text(label,
-          style: TextStyle(
-              color: color ?? AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w500)),
+      leading: Icon(
+        icon,
+        color: color ?? AppColors.primaryPurple,
+        size: 22,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: color ?? Colors.black,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
       onTap: onTap,
     );
   }

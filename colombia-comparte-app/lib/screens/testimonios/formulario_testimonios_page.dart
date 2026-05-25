@@ -7,17 +7,21 @@ class FormularioTestimoniosPage extends StatefulWidget {
   const FormularioTestimoniosPage({super.key});
 
   @override
-  State<FormularioTestimoniosPage> createState() => _FormularioTestimoniosPageState();
+  State<FormularioTestimoniosPage> createState() =>
+      _FormularioTestimoniosPageState();
 }
 
-class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
+class _FormularioTestimoniosPageState
+    extends State<FormularioTestimoniosPage> {
   final _api = ApiService();
+
   final _nameController = TextEditingController();
   final _photoController = TextEditingController();
   final _textController = TextEditingController();
   final _countryController = TextEditingController();
   final _instagramController = TextEditingController();
   final _facebookController = TextEditingController();
+
   bool _isLoading = false;
   String _error = '';
   Map<String, dynamic>? _editing;
@@ -33,16 +37,24 @@ class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
     final prefs = await SharedPreferences.getInstance();
     final role = prefs.getString('role') ?? '';
     final country = prefs.getString('country') ?? '';
-    setState(() { _role = role; });
-    if (role != 'superadmin') _countryController.text = country;
+
+    setState(() {
+      _role = role;
+    });
+
+    if (role != 'superadmin') {
+      _countryController.text = country;
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
+
     if (args != null && _editing == null) {
       _editing = args as Map<String, dynamic>;
+
       _nameController.text = _editing!['name'] ?? '';
       _photoController.text = _editing!['photo'] ?? '';
       _textController.text = _editing!['text'] ?? '';
@@ -53,23 +65,32 @@ class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
   }
 
   Future<void> _save() async {
-    if (_nameController.text.isEmpty || _textController.text.isEmpty ||
-        _photoController.text.isEmpty || _countryController.text.isEmpty) {
+    if (_nameController.text.isEmpty ||
+        _textController.text.isEmpty ||
+        _photoController.text.isEmpty ||
+        _countryController.text.isEmpty) {
       setState(() => _error = 'Completa los campos obligatorios');
       return;
     }
-    setState(() { _isLoading = true; _error = ''; });
+
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
 
     final body = {
       'name': _nameController.text,
       'photo': _photoController.text,
       'text': _textController.text,
       'country': _countryController.text,
-      if (_instagramController.text.isNotEmpty) 'instagram': _instagramController.text,
-      if (_facebookController.text.isNotEmpty) 'facebook': _facebookController.text,
+      if (_instagramController.text.isNotEmpty)
+        'instagram': _instagramController.text,
+      if (_facebookController.text.isNotEmpty)
+        'facebook': _facebookController.text,
     };
 
     bool ok;
+
     if (_editing != null) {
       ok = await _api.updateTestimonio(_editing!['_id'], body);
     } else {
@@ -77,7 +98,9 @@ class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
     }
 
     if (!mounted) return;
+
     setState(() => _isLoading = false);
+
     if (ok) {
       Navigator.pop(context);
     } else {
@@ -88,13 +111,16 @@ class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
   @override
   Widget build(BuildContext context) {
     final isEditing = _editing != null;
+
     return Scaffold(
       backgroundColor: AppColors.formBackground,
       appBar: AppBar(
-        title: Text(isEditing ? 'Editar testimonio' : 'Nuevo testimonio',
-            style: const TextStyle(color: AppColors.white)),
+        title: Text(
+          isEditing ? 'Editar testimonio' : 'Nuevo testimonio',
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: AppColors.primaryPurple,
-        iconTheme: const IconThemeData(color: AppColors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -102,29 +128,49 @@ class _FormularioTestimoniosPageState extends State<FormularioTestimoniosPage> {
           children: [
             _Field(label: 'Nombre *', controller: _nameController),
             _Field(label: 'URL de foto *', controller: _photoController),
-            _Field(label: 'Testimonio *', controller: _textController, maxLines: 4),
+            _Field(
+              label: 'Testimonio *',
+              controller: _textController,
+              maxLines: 4,
+            ),
             _Field(
               label: 'País *',
               controller: _countryController,
               enabled: _role == 'superadmin',
             ),
-            _Field(label: 'Instagram (opcional)', controller: _instagramController),
-            _Field(label: 'Facebook (opcional)', controller: _facebookController),
+            _Field(
+              label: 'Instagram (opcional)',
+              controller: _instagramController,
+            ),
+            _Field(
+              label: 'Facebook (opcional)',
+              controller: _facebookController,
+            ),
+
             if (_error.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(_error, style: const TextStyle(color: AppColors.errorColor)),
+              Text(
+                _error,
+                style: const TextStyle(color: Colors.red),
+              ),
             ],
+
             const SizedBox(height: 24),
+
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _save,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryPurple,
+                ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: AppColors.white)
-                    : Text(isEditing ? 'Guardar cambios' : 'Crear testimonio',
-                        style: const TextStyle(color: AppColors.white)),
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        isEditing ? 'Guardar cambios' : 'Crear testimonio',
+                        style: const TextStyle(color: Colors.white),
+                      ),
               ),
             ),
           ],
@@ -155,11 +201,31 @@ class _Field extends StatelessWidget {
         controller: controller,
         maxLines: maxLines,
         enabled: enabled,
+
+        // 👇 TEXTO ESCRITO EN NEGRO (ESTO ES LO QUE TE FALTABA)
+        style: const TextStyle(color: Colors.black),
+
         decoration: InputDecoration(
           labelText: label,
+
+          // 👇 LABEL EN NEGRO
+          labelStyle: const TextStyle(color: Colors.black),
+
+          // 👇 TEXTO CUANDO NO ESTÁ SELECCIONADO
+          hintStyle: const TextStyle(color: Colors.black45),
+
           filled: true,
-          fillColor: AppColors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          fillColor: Colors.white,
+
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black12),
+          ),
+
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.black),
+          ),
         ),
       ),
     );
