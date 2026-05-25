@@ -4,10 +4,6 @@ import { IUser } from "../services/interfaces/user";
 interface IUserDocument extends IUser, Document {}
 
 export const UserSchema = new Schema<IUserDocument>({
-  id: {
-    type: String,
-    unique: true,
-  },
   name: {
     type: String,
     required: function (this: IUserDocument) {

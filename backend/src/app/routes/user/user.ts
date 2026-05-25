@@ -15,7 +15,7 @@ export class AuthRoutes extends RoutesApp {
     }
 
     protected setServicesRoutes(): void {
-        this.router.post('/create', this.userController.create),
+        this.router.post('/create', this.userController.create);
         this.router.post('/', this.userController.login);
     }
 }   
