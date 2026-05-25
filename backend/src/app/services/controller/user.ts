@@ -56,7 +56,7 @@ export class UserController implements UserService<UserResponse> {
             const find_user = await UserModel.findOne({email});
             if (!find_user) return res.status(400).json({ok: false, error_message: 'email no encontrado'});
             
-            const validPassword = password === find_user.password;
+           const validPassword = bycrypt.compareSync(password, find_user.password);
             if (!validPassword) return res.status(400).json({ok: false, error_message: 'la contraseña no es valida'});
 
             const token = await generateToken(find_user.id);

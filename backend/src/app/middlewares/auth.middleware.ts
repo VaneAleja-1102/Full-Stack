@@ -26,7 +26,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const user = await UserModel.findOne({ id: result });
+ const user = await UserModel.findOne({ $or: [{ id: result }, { _id: result }] });
     if (!user) {
       res.status(401).json({ ok: false, error_message: 'Usuario no encontrado' });
       return;
